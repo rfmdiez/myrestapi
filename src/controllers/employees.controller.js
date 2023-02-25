@@ -1,4 +1,14 @@
 import { pool } from "../db.js";
+import { createClient } from 'redis';
+
+const client = createClient({
+    //host: 'localhost',
+    host: 'myredis.pohiql.ng.0001.use1.cache.amazonaws.com',
+    port: 6379
+})
+
+client.on('error', err => console.log('Redis Client Error', err));
+
 
 const ping  = async (req,res)=> {
     const [result] = await pool.query('SELECT * FROM employee')
@@ -7,25 +17,31 @@ const ping  = async (req,res)=> {
 
 const getEmployees = async (req,res)=> {
     try {
-        const [rows] = await pool.query('SELECT * FROM Employee')
+        const [rows] = await pool.query('SELECT * FROM employee')
         res.json(rows)
     } catch (error) {
         return res.status(500).json({
-            message: 'Something goes wrong'
+            message: 'Something goes wrong',
+            error: error
         })
     }
 }
 
 const getEmployee = async (req,res)=> {
+    await client.connect();
     try {
-        const [rows] = await pool.query('SELECT * FROM Employee WHERE id = ?', [req.params.id])
+        const [rows] = await pool.query('SELECT * FROM employee WHERE id = ?', [req.params.id])
         if(rows.length<=0) return res.status(404).json({message : 'Employee not found'})
+
+        await client.set(`employee${req.params.id}`,JSON.stringify(rows[0]))
         res.json(rows[0])
+        
     } catch (error) {
         return res.status(500).json({
             message: 'Something goes wrong'
         })
     }
+    await client.disconnect();
 }
 
 const createEmployee = async (req,res)=> {
@@ -49,7 +65,7 @@ const createEmployee = async (req,res)=> {
 
 const deleteEmployee = async (req,res)=> {
     try {
-        const [result] = await pool.query('DELETE FROM Employee WHERE id = ?', [req.params.id])
+        const [result] = await pool.query('DELETE FROM employee WHERE id = ?', [req.params.id])
         if(result.affectedRows <= 0) return res.status(404).json({ message : 'Employee not found' })
         res.sendStatus(204)
     } catch (error) {
@@ -63,7 +79,7 @@ const updateEmployee = async (req,res)=> {
     try {
         const {id } = req.params
         const { name,salary } = req.body
-        const [result] = await pool.query('UPDATE Employee SET name = IFNULL(?,name) , salary = IFNULL(?,salary) WHERE id = ?', [name, salary, id])
+        const [result] = await pool.query('UPDATE employee SET name = IFNULL(?,name) , salary = IFNULL(?,salary) WHERE id = ?', [name, salary, id])
         if(result.affectedRows <= 0) return res.status(404).json({ message : 'Employee not found' })
         const [rows] = await pool.query('SELECT * FROM Employee WHERE id = ?', [req.params.id])
         res.json(rows[0])
