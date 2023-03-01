@@ -1,14 +1,5 @@
 import { pool } from "../db.js";
-import { createClient } from 'redis';
-
-const client = createClient({
-    //host: 'localhost',
-    host: 'myredis.pohiql.ng.0001.use1.cache.amazonaws.com',
-    port: 6379
-})
-
-client.on('error', err => console.log('Redis Client Error', err));
-
+import { client } from "../index.js";
 
 const ping  = async (req,res)=> {
     const [result] = await pool.query('SELECT * FROM employee')
@@ -28,20 +19,24 @@ const getEmployees = async (req,res)=> {
 }
 
 const getEmployee = async (req,res)=> {
-    await client.connect();
+    
     try {
+        const employeeFromCache = await client.get(`employee${req.params.id}`)
+        if(employeeFromCache){
+            return res.send(JSON.parse(employeeFromCache))
+        }
         const [rows] = await pool.query('SELECT * FROM employee WHERE id = ?', [req.params.id])
         if(rows.length<=0) return res.status(404).json({message : 'Employee not found'})
-
         await client.set(`employee${req.params.id}`,JSON.stringify(rows[0]))
         res.json(rows[0])
         
     } catch (error) {
         return res.status(500).json({
-            message: 'Something goes wrong'
+            message: 'Something goes wrong'+error
         })
+        
     }
-    await client.disconnect();
+    
 }
 
 const createEmployee = async (req,res)=> {
