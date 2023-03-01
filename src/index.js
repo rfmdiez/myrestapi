@@ -4,9 +4,10 @@ import { PORT } from './config.js'
 import { createClient } from 'redis';
 
 const client = createClient({
-    host: 'localhost',
+    //host: 'localhost',
     //host: 'myredis.pohiql.ng.0001.use1.cache.amazonaws.com',
-    port: 6379
+    url: 'redis://myredis.pohiql.ng.0001.use1.cache.amazonaws.com:6379',
+    //port: 6379
 })
 
 //client.on('error',(err)=> console.log(err.message))
